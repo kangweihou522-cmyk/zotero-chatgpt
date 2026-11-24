@@ -1,0 +1,13 @@
+{
+  "manifest_version": 2,
+  "name": "ChatGPT PDF native test driver",
+  "version": "1.0.0",
+  "applications": {
+    "zotero": {
+      "id": "chatgpt-pdf-smoke@zotero.community",
+      "strict_min_version": "10.0",
+      "strict_max_version": "10.0.*",
+      "update_url": "https://raw.githubusercontent.com/kangweihou522-cmyk/zotero-chatgpt/main/tests/native/driver/updates.json"
+    }
+  }
+}

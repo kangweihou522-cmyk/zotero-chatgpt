@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<window xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul"
+        xmlns:h="http://www.w3.org/1999/xhtml"
+        id="zotero-chatgpt-pdf-window" windowtype="zotero:chatgpt-pdf"
+        title="Zotero ChatGPT PDF" width="790" height="730" persist="width height">
+  <h:link rel="stylesheet" href="dialog.css"/>
+  <h:main>
+    <h:header>
+      <h:h1>ChatGPT PDF 翻译</h:h1>
+      <h:p>翻译所选 PDF，并把译文保存到 Zotero 文献库。</h:p>
+    </h:header>
+
+    <h:details id="settings" class="panel">
+      <h:summary>ChatGPT 与排版设置</h:summary>
+      <h:div class="settings">
+        <h:label for="account">ChatGPT 账户</h:label>
+        <h:select id="account"/>
+        <h:div class="actions">
+          <h:button id="login" type="button">Continue with ChatGPT</h:button>
+          <h:button id="add-account" type="button" hidden="hidden">添加账户</h:button>
+          <h:button id="logout" type="button" disabled="disabled">退出登录</h:button>
+          <h:button id="usage" type="button">查看额度</h:button>
+        </h:div>
+        <h:p id="account-status" class="hint">正在读取登录状态…</h:p>
+
+        <h:label for="model">翻译模型</h:label>
+        <h:div class="field-actions">
+          <h:select id="model" aria-describedby="account-status"/>
+          <h:button id="models" type="button" disabled="disabled">读取可用模型</h:button>
+        </h:div>
+
+        <h:label for="python">Python 可执行文件</h:label>
+        <h:div class="field-actions">
+          <h:input id="python" type="text" spellcheck="false" placeholder="选择安装了 BabelDOC 的 Python"/>
+          <h:button id="pick-python" type="button">选择文件…</h:button>
+          <h:button id="probe" type="button">检测</h:button>
+        </h:div>
+        <h:p id="renderer-status" class="hint">需要 Python 3.11–3.13 和 BabelDOC 0.7.1。</h:p>
+        <h:button id="help" class="text-button" type="button">查看安装说明</h:button>
+      </h:div>
+    </h:details>
+
+    <h:section class="panel" aria-label="翻译选项">
+      <h:div class="grid">
+        <h:label>原文语言<h:select id="source"/></h:label>
+        <h:label>目标语言<h:select id="target"/></h:label>
+        <h:label>输出<h:select id="mode">
+          <h:option value="dual">双语对照 PDF</h:option>
+          <h:option value="mono">仅译文 PDF</h:option>
+          <h:option value="both">双语对照与仅译文</h:option>
+        </h:select></h:label>
+        <h:label id="layout-field">双语排版<h:select id="layout">
+          <h:option value="side-by-side">原文与译文并排</h:option>
+          <h:option value="alternating">原文与译文交替页</h:option>
+        </h:select></h:label>
+      </h:div>
+      <h:label class="pages">页码<h:input id="pages" type="text" spellcheck="false"
+        placeholder="留空翻译全文，或输入 1,3-5" maxlength="300"/></h:label>
+    </h:section>
+
+    <h:section class="panel queue" aria-labelledby="queue-title">
+      <h:div class="section-header">
+        <h:h2 id="queue-title">要翻译的 PDF</h:h2>
+        <h:span id="selected-count"/>
+      </h:div>
+      <h:p id="empty" class="hint" hidden="hidden">请在 Zotero 文献库选中包含 PDF 的文献，或直接选中 PDF 附件。</h:p>
+      <h:div id="items"/>
+    </h:section>
+
+    <h:p class="hint">开始后，所选页面的文字会发送给 OpenAI 并使用 ChatGPT 订阅额度。PDF 排版和附件保存都在本机完成。</h:p>
+    <h:progress id="progress" max="100" hidden="hidden" aria-label="当前 PDF 的翻译进度"/>
+    <h:p id="status" class="notice" role="status" aria-live="polite"/>
+    <h:footer class="actions">
+      <h:button id="start" class="primary" type="button" disabled="disabled">开始翻译</h:button>
+      <h:button id="cancel" type="button" disabled="disabled">停止</h:button>
+    </h:footer>
+  </h:main>
+  <script src="dialog.js"/>
+</window>

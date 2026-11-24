@@ -1,0 +1,6 @@
+zotero-chatgpt-pdf-menu =
+    .label = ChatGPT PDF
+zotero-chatgpt-pdf-translate =
+    .label = Translate PDFs with ChatGPT…
+zotero-chatgpt-pdf-settings =
+    .label = ChatGPT and renderer settings…
