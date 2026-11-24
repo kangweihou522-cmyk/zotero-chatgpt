@@ -112,6 +112,15 @@ async function run() {
   check(targets.includes("main/library/item") && targets.includes("main/menubar/tools"), "Addon menus were not registered");
   report.menus = targets;
 
+  report.stage = "initialize-library";
+  const pane = await waitFor(() => {
+    const current = Zotero.getActiveZoteroPane();
+    return current?.itemsView && current.collectionsView && current;
+  }, "Zotero library views");
+  await pane.collectionsView.selectLibrary(Zotero.Libraries.userLibraryID);
+  await pane.onCollectionSelected();
+  await waitFor(() => pane.itemsView.collectionTreeRows.length > 0, "populated library rows");
+
   const article = new Zotero.Item("journalArticle");
   article.setField("title", "Synthetic PDF translation fixture");
   report.stage = "create-fixture";
@@ -122,10 +131,7 @@ async function run() {
     file: profileFile("fixture.pdf").path, parentItemID: article.id, title: "Original PDF", contentType: "application/pdf",
   });
   report.stage = "open-dialog";
-  const pane = Zotero.getActiveZoteroPane();
-  const itemsView = await waitFor(() => pane.itemsView, "Zotero items view");
-  await itemsView.waitForLoad();
-  await itemsView.selectItems([article.id]);
+  await pane.itemsView.selectItems([article.id]);
   check(pane.getSelectedItems(true).includes(article.id), "Synthetic fixture could not be selected in the Zotero library");
   const dialog = await Zotero.ChatGPTPDF.open();
   check(dialog, "No translation window was opened");
