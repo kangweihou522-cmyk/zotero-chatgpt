@@ -72,6 +72,9 @@ if [[ ! -f "$profile/result.json" ]]; then
   exit 1
 fi
 cp "$profile/result.json" "$smoke_dir/result.json"
+if ! grep -q '"success": true' "$profile/result.json"; then
+  grep -nEi 'JavaScript error|chrome://zotero-chatgpt-pdf|Exception|Could not' "$smoke_dir/zotero.log" | tail -n 35 || true
+fi
 "$ZOTERO_TEST_PYTHON" - "$smoke_dir/result.json" "$host_exit" <<'PY'
 import json
 from pathlib import Path

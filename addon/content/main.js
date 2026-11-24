@@ -31,7 +31,11 @@ var ChatGPTPDFMain = (() => {
     return "model." + accountId;
   }
 
-  function getPDFs(win) {
+  function getSelectedItems(win) {
+    return win?.ZoteroPane?.getSelectedItems() || [];
+  }
+
+  async function getPDFs(win) {
     const result = new Map();
     const add = (item, includeGenerated) => {
       if (!item || item.deleted || !item.isPDFAttachment()) return;
@@ -39,10 +43,11 @@ var ChatGPTPDFMain = (() => {
       if (!includeGenerated && title.startsWith(GENERATED_TITLE)) return;
       result.set(item.id, { id: item.id, title, parentTitle: item.parentItem?.getField("title") || "" });
     };
-    for (const item of win?.ZoteroPane?.getSelectedItems() || []) {
+    for (const item of getSelectedItems(win)) {
       if (item.deleted) continue;
       if (item.isAttachment()) add(item, true);
       else if (item.isRegularItem()) {
+        await item.loadDataType("childItems");
         for (const id of item.getAttachments()) add(Zotero.Items.get(id), false);
       }
     }
@@ -119,15 +124,16 @@ var ChatGPTPDFMain = (() => {
     return event?.target?.ownerDocument?.defaultView || Zotero.getMainWindow();
   }
 
-  function open(win, showSettings = false) {
+  async function open(win, showSettings = false) {
     if (!win) return;
+    const items = await getPDFs(win);
     if (dialog && !dialog.closed) {
       dialog.focus();
-      return;
+      return dialog;
     }
     dialog = win.openDialog("chrome://zotero-chatgpt-pdf/content/dialog.xhtml", "zotero-chatgpt-pdf",
       "chrome,centerscreen,resizable,dialog=no", {
-        items: getPDFs(win),
+        items,
         showSettings,
         languages: LANGUAGES,
         settings: loadSettings(),
@@ -142,6 +148,15 @@ var ChatGPTPDFMain = (() => {
         translate,
         launchURL: url => Zotero.launchURL(url),
       });
+    return dialog;
+  }
+
+  function openFromMenu(event, showSettings = false) {
+    const win = owner(event);
+    open(win, showSettings).catch(error => {
+      Zotero.logError(error);
+      Services.prompt.alert(win, "ChatGPT PDF", "无法读取当前选择的文献。请重新选择 PDF 附件。");
+    });
   }
 
   function addWindow(win) {
@@ -162,8 +177,10 @@ var ChatGPTPDFMain = (() => {
     const translateMenu = {
       menuType: "menuitem",
       l10nID: "zotero-chatgpt-pdf-translate",
-      onShowing: (event, context) => context.setEnabled(getPDFs(owner(event)).length > 0),
-      onCommand: event => open(owner(event)),
+      onShowing: (event, context) => context.setEnabled(
+        getSelectedItems(owner(event)).some(item => !item.deleted && (item.isRegularItem() || item.isPDFAttachment()))
+      ),
+      onCommand: event => openFromMenu(event),
     };
     for (const [menuID, target, menus] of [
       ["zotero-chatgpt-pdf-item", "main/library/item", [translateMenu]],
@@ -173,7 +190,7 @@ var ChatGPTPDFMain = (() => {
         menus: [translateMenu, {
           menuType: "menuitem",
           l10nID: "zotero-chatgpt-pdf-settings",
-          onCommand: event => open(owner(event), true),
+          onCommand: event => openFromMenu(event, true),
         }],
       }]],
     ]) {

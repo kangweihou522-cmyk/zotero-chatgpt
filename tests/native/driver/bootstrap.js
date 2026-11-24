@@ -4,6 +4,9 @@ var finished = false;
 var report = { success: false, requests: 0 };
 var addonID = "chatgpt-pdf@zotero.community";
 
+function install() {}
+function shutdown() {}
+
 function startup() {
   run().then(() => finish(), error => finish(error));
   setTimeout(() => finish(new Error("Native test exceeded its deadline")), 210000);
@@ -33,7 +36,7 @@ async function finish(error) {
   if (finished) return;
   finished = true;
   report.success = !error;
-  if (error) report.error = String(error.stack || error);
+  if (error) report.error = String(error) + "\n" + String(error.stack || "");
   await IOUtils.writeUTF8(profileFile("result.json").path, JSON.stringify(report, null, 2));
   Services.startup.quit(Services.startup.eForceQuit);
 }
@@ -111,22 +114,36 @@ async function run() {
 
   const article = new Zotero.Item("journalArticle");
   article.setField("title", "Synthetic PDF translation fixture");
-  await article.saveTx();
+  report.stage = "create-fixture";
+  await article.saveTx({ skipNotifier: true });
+  await article.loadDataType("childItems");
+  await Zotero.Notifier.trigger("add", "item", [article.id]);
   const original = await Zotero.Attachments.importFromFile({
     file: profileFile("fixture.pdf").path, parentItemID: article.id, title: "Original PDF", contentType: "application/pdf",
   });
-  await Zotero.getActiveZoteroPane().selectItem(article.id);
-  Zotero.ChatGPTPDF.open();
-  const dialog = await waitFor(() => {
-    const window = Services.wm.getMostRecentWindow("zotero:chatgpt-pdf");
-    return window?.document.getElementById("models")?.disabled === false && window;
-  }, "ChatGPT PDF dialog to show the saved account");
+  report.stage = "open-dialog";
+  const pane = Zotero.getActiveZoteroPane();
+  await pane.selectItem(article.id);
+  check(pane.getSelectedItems(true).includes(article.id), "Synthetic fixture could not be selected in the Zotero library");
+  const dialog = await Zotero.ChatGPTPDF.open();
+  check(dialog, "No translation window was opened");
   const $ = id => dialog.document.getElementById(id);
+  await waitFor(() => {
+    report.dialogStatus = $("status")?.textContent;
+    report.accountStatus = $("account-status")?.textContent;
+    return $("models")?.disabled === false;
+  }, "ChatGPT PDF dialog to show the saved account");
+  report.stage = "load-models";
   $("models").click();
   await waitFor(() => !$("start").disabled && $("model").value === "native-test", "available model selection");
+  report.stage = "probe-renderer";
   $("probe").click();
-  await waitFor(() => $("renderer-status").textContent.includes("已就绪"), "local engine probe");
+  await waitFor(() => {
+    report.dialogStatus = $("status")?.textContent;
+    return $("renderer-status").textContent.includes("已就绪");
+  }, "local engine probe");
 
+  report.stage = "translate-pdf";
   $("pages").value = "2";
   $("mode").value = "both";
   $("start").click();
@@ -136,6 +153,7 @@ async function run() {
   check(attachments.length === 3 && attachments.some(item => item.id === original.id),
     "Expected the original and two new attachments");
 
+  report.stage = "verified-attachments";
   report.outputs = {};
   for (const item of attachments) {
     const title = item.getField("title");
