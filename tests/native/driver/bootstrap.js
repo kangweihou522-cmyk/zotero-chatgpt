@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 /* This driver runs only in the disposable profile prepared by run.sh. */
 var finished = false;
-var report = { success: false, requests: 0 };
+var report = { success: false, requests: 0, readerRequests: 0 };
 var addonID = "chatgpt-pdf@zotero.community";
 
 function install() {}
@@ -56,6 +56,19 @@ function mockChatGPT() {
     const body = JSON.parse(options.body);
     check(body.model === "native-test" && body.store === false && body.stream === true, "Invalid Responses request");
     const prompt = body.input[0].content;
+    const readerRequest = body.instructions.startsWith("Translate the selected scholarly text");
+    if (readerRequest) {
+      check(body.input.length === 1 && body.input[0].role === "user", "Reader passed unexpected content to ChatGPT");
+      check(body.instructions.includes("Simplified Chinese"), "Wrong target language for PDF selection");
+      const passages = new Map([
+        ["Photosynthesis converts light energy into chemical energy.", "光合作用将光能转化为化学能。"],
+        ["Text from a new underline.", "来自新下划线的文字。"],
+      ]);
+      report.lastSelectedText = prompt;
+      check(passages.has(prompt), "ChatGPT received unexpected selected text: " + prompt);
+      report.readerRequests++;
+      return streamedText(passages.get(prompt), body.model);
+    }
     check(!prompt.includes("MARS SURFACE SAMPLE"), "PDF text from an unselected page was transmitted");
     const translate = source => source.replace(
       /Photosynthesis converts light energy into chemical energy\./gi,
@@ -71,12 +84,104 @@ function mockChatGPT() {
       translated = translate(start < 0 ? prompt : JSON.parse(prompt.slice(start)).passage);
     }
     report.requests++;
-    const events = [
-      { type: "response.output_text.delta", delta: translated },
-      { type: "response.completed", response: { status: "completed", model: body.model } },
-    ];
-    return { status: 200, responseText: events.map(event => "data: " + JSON.stringify(event) + "\n\n").join("") };
+    return streamedText(translated, body.model);
   };
+}
+
+function streamedText(text, model) {
+  const events = [
+    { type: "response.output_text.delta", delta: text },
+    { type: "response.completed", response: { status: "completed", model } },
+  ];
+  return { status: 200, responseText: events.map(event => "data: " + JSON.stringify(event) + "\n\n").join("") };
+}
+
+function sendPDFDrag(view, pdfWindow, pageIndex) {
+  const { chars } = view._pdfPages[pageIndex];
+  const first = chars[0].rect;
+  const last = chars.at(-1).rect;
+  const pdfPage = pdfWindow.PDFViewerApplication.pdfViewer.getPageView(pageIndex);
+  const bounds = pdfPage.div.getBoundingClientRect();
+  const project = (x, y) => {
+    const [left, top] = pdfPage.viewport.convertToViewportPoint(x, y);
+    return [bounds.left + left, bounds.top + top];
+  };
+  const [x1, y1] = project(first[0] - 1, (first[1] + first[3]) / 2);
+  const [x2, y2] = project(last[2] + 1, (last[1] + last[3]) / 2);
+  const utils = pdfWindow.windowUtils;
+  utils.sendMouseEvent("mousedown", x1, y1, 0, 1, 0);
+  utils.sendMouseEvent("mousemove", (x1 + x2) / 2, (y1 + y2) / 2, 0, 0, 0);
+  utils.sendMouseEvent("mousemove", x2, y2, 0, 0, 0);
+  utils.sendMouseEvent("mouseup", x2, y2, 0, 1, 0);
+  return [x1, y1, x2, y2];
+}
+
+async function saveReaderScreenshot(win) {
+  try {
+    const canvas = win.document.createElementNS("http://www.w3.org/1999/xhtml", "canvas");
+    canvas.width = win.innerWidth;
+    canvas.height = win.innerHeight;
+    canvas.getContext("2d").drawWindow(win, 0, 0, canvas.width, canvas.height, "white");
+    const blob = await new Promise(resolve => canvas.toBlob(resolve, "image/png"));
+    await IOUtils.write(profileFile("reader-translation.png").path, new Uint8Array(await blob.arrayBuffer()));
+  } catch (error) {
+    Zotero.debug("Could not capture the PDF reader screenshot: " + error.message);
+  }
+}
+
+async function verifyReader(original, prefix) {
+  report.stage = "open-pdf-reader";
+  check(!Zotero.Prefs.get(prefix + "python", true), "Reader test requires a profile without a Python path");
+  const win = Zotero.getMainWindow();
+  win.resizeTo(1360, 850);
+  const reader = await Zotero.Reader.open(original.id, { pageIndex: 1 });
+  await reader._initPromise;
+  const rail = win.document.getElementById("zotero-context-pane-sidenav");
+  const button = await waitFor(() => {
+    const current = rail.querySelector('[data-l10n-id="zotero-chatgpt-pdf-reader-sidenav"]');
+    return current && !current.closest(".pin-wrapper").hidden && current;
+  }, "ChatGPT icon in the rightmost navigation bar");
+  button.dispatchEvent(new win.MouseEvent("click", { bubbles: true, button: 0, detail: 1 }));
+  const sidebar = await waitFor(() => win.document.getElementById(reader.tabID + "-context")?.querySelector(".chatgpt-reader"),
+    "ChatGPT translation pane under the PDF reader context");
+  const role = name => sidebar.querySelector('[data-role="' + name + '"]');
+  check(sidebar.closest("#zotero-context-pane-inner"), "Translation pane is outside the native right sidebar");
+  check(role("auto").checked && role("target").value === "zh-CN", "Unexpected reader defaults");
+  await waitFor(() => !role("models").disabled && role("account-status").textContent.includes("已连接"),
+    "ChatGPT session inside the reader");
+  role("models").click();
+  await waitFor(() => role("model").value === "native-test", "ChatGPT model in the right pane");
+
+  report.stage = "drag-select-text";
+  const view = reader._internalReader._primaryView;
+  const pdfWindow = view._iframeWindow;
+  const pageIndex = 1;
+  await waitFor(() => view._pdfPages[pageIndex]?.chars?.length
+    && pdfWindow.PDFViewerApplication.pdfViewer.getPageView(pageIndex)?.div.getBoundingClientRect().height,
+    "text geometry of the opened PDF page");
+  report.drag = sendPDFDrag(view, pdfWindow, pageIndex);
+  await waitFor(() => {
+    report.readerStatus = role("status").textContent;
+    report.readerSource = role("text").textContent;
+    return role("result").textContent === "光合作用将光能转化为化学能。" && report.readerStatus === "翻译完成";
+  }, "drag-selected text and its ChatGPT translation on the right");
+  check(report.readerSource === "Photosynthesis converts light energy into chemical energy."
+    && report.readerRequests === 1, "Reader translated something beyond the selection");
+  report.readerSidebar = true;
+  await saveReaderScreenshot(win);
+
+  report.stage = "underline-translation";
+  role("annotation").checked = true;
+  role("annotation").dispatchEvent(new win.Event("change"));
+  reader._internalReader._annotationManager._skipAnnotationSavingDebounce = true;
+  reader._internalReader._annotationManager.addAnnotation(Components.utils.cloneInto({
+    type: "underline", text: "Text from a new underline.", color: "#ffd400",
+    position: { pageIndex: 1, rects: [[65, 688, 186, 700]] }, sortIndex: "00001|003305|00000",
+  }, reader._iframeWindow));
+  await waitFor(() => role("result").textContent === "来自新下划线的文字。"
+    && role("status").textContent === "翻译完成", "new underline translation");
+  check(report.readerRequests === 2, "Unexpected number of reader requests");
+  win.Zotero_Tabs.close(reader.tabID);
 }
 
 async function run() {
@@ -85,7 +190,6 @@ async function run() {
   report.zotero = Zotero.version;
   check(Zotero.version === "10.0.8", "Unexpected Zotero version");
   const prefix = "extensions.zotero-chatgpt-pdf.";
-  Zotero.Prefs.set(prefix + "python", Services.env.get("ZOTERO_TEST_PYTHON"), true);
   Zotero.Prefs.set(prefix + "chatgpt.activeClient", "native-test-client", true);
   const account = Components.classes["@mozilla.org/login-manager/loginInfo;1"]
     .createInstance(Components.interfaces.nsILoginInfo);
@@ -130,6 +234,9 @@ async function run() {
   const original = await Zotero.Attachments.importFromFile({
     file: profileFile("fixture.pdf").path, parentItemID: article.id, title: "Original PDF", contentType: "application/pdf",
   });
+  await verifyReader(original, prefix);
+
+  Zotero.Prefs.set(prefix + "python", Services.env.get("ZOTERO_TEST_PYTHON"), true);
   report.stage = "open-dialog";
   await pane.itemsView.selectItems([article.id]);
   check(pane.getSelectedItems(true).includes(article.id), "Synthetic fixture could not be selected in the Zotero library");

@@ -13,6 +13,7 @@ var ChatGPTPDFMain = (() => {
   const menuIDs = [];
   let auth;
   let renderer;
+  let reader;
   let dialog;
 
   function pref(key) {
@@ -29,6 +30,14 @@ var ChatGPTPDFMain = (() => {
 
   function modelKey(accountId) {
     return "model." + accountId;
+  }
+
+  function getModel(accountId) {
+    return pref(modelKey(accountId)) || "";
+  }
+
+  function setModel(accountId, model) {
+    setPref(modelKey(accountId), model);
   }
 
   function getSelectedItems(win) {
@@ -140,8 +149,8 @@ var ChatGPTPDFMain = (() => {
         saveSettings(settings) {
           for (const key of Object.keys(DEFAULTS)) setPref(key, settings[key]);
         },
-        getModel: accountId => pref(modelKey(accountId)) || "",
-        setModel: (accountId, model) => setPref(modelKey(accountId), model),
+        getModel,
+        setModel,
         getPages: ChatGPTPDFRenderer.getPages,
         auth,
         probe: renderer.probe,
@@ -162,18 +171,22 @@ var ChatGPTPDFMain = (() => {
   function addWindow(win) {
     if (!win || windows.has(win)) return;
     win.MozXULElement.insertFTLIfNeeded("zotero-chatgpt-pdf.ftl");
+    reader?.addWindow(win);
     windows.add(win);
   }
 
   function removeWindow(win) {
     if (!windows.delete(win)) return;
+    reader?.removeWindow(win);
     for (const link of win.document?.querySelectorAll('link[href="zotero-chatgpt-pdf.ftl"]') || []) link.remove();
   }
 
   function start({ id, rootURI }) {
     auth = ChatGPTPDFAuth.create({ Zotero, Services, ChromeUtils, Cc, Ci, crypto, setTimeout, clearTimeout });
     renderer = ChatGPTPDFRenderer.create({ Zotero, ChromeUtils, IOUtils, PathUtils, auth, rootURI });
+    reader = ChatGPTPDFReader.create({ Zotero, auth, pref, setPref, getModel, setModel });
     for (const win of Zotero.getMainWindows()) addWindow(win);
+    reader.start(id);
     const translateMenu = {
       menuType: "menuitem",
       l10nID: "zotero-chatgpt-pdf-translate",
@@ -204,6 +217,7 @@ var ChatGPTPDFMain = (() => {
   function stop() {
     dialog?.close();
     dialog = null;
+    reader?.stop();
     auth?.dispose();
     for (const id of menuIDs.splice(0)) Zotero.MenuManager.unregisterMenu(id);
     for (const win of windows) removeWindow(win);

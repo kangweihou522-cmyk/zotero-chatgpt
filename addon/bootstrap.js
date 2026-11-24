@@ -18,7 +18,7 @@ async function startup({ id, version, rootURI }) {
   };
   pluginScope.globalThis = pluginScope;
   try {
-    for (const file of ["chatgpt.js", "renderer.js", "main.js"]) {
+    for (const file of ["chatgpt.js", "renderer.js", "reader.js", "main.js"]) {
       Services.scriptloader.loadSubScript(rootURI + "content/" + file, pluginScope, "UTF-8");
     }
     pluginScope.ChatGPTPDFMain.start({ id, version, rootURI });

@@ -22,7 +22,7 @@ jobs:
           python3 -m unittest discover -s tests -p 'test_*.py'
       - name: Install Zotero runtime dependencies
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends xvfb xauth libgtk-3-0 libdbus-glib-1-2 libx11-xcb1 libxt6
-      - name: Install XPI and translate a synthetic PDF in Zotero 10.0.8
+      - name: Test PDF selection in the reader and translate a synthetic PDF in Zotero 10.0.8
         run: bash tests/native/run.sh
       - uses: actions/upload-artifact@v4
         if: always()
@@ -33,3 +33,4 @@ jobs:
           path: |
             ${{ runner.temp }}/zotero-chatgpt-pdf-native/*.log
             ${{ runner.temp }}/zotero-chatgpt-pdf-native/result.json
+            ${{ runner.temp }}/zotero-chatgpt-pdf-native/reader-translation.png

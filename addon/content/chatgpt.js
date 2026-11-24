@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: MIT
  * Official Sign in with ChatGPT plan usage for an open-source local client.
- * Adapted from v0.3.0 of zotero-zotero-chatgpt-pdf (MIT).
+ * Adapted from v0.3.0 of zotero-ollama-local-ai (MIT).
  * Protocol: https://developers.openai.com/siwc/token-sharing-open-source
  * Credentials stay in Firefox's login manager, never preferences or UI objects.
  */

@@ -9,7 +9,8 @@ profile="$(mktemp -d "$smoke_dir/profile.XXXXXX")"
 mkdir -p "$profile/extensions" "$profile/data"
 cp -R "$repo_dir/tests/native/driver" "$profile/extensions/chatgpt-pdf-smoke@zotero.community"
 python3 "$repo_dir/scripts/build.py"
-cp "$repo_dir"/dist/zotero-chatgpt-pdf-*.xpi "$profile/plugin.xpi"
+plugin_version="$(python3 -c 'import json, sys; print(json.load(open(sys.argv[1]))["version"])' "$repo_dir/addon/manifest.json")"
+cp "$repo_dir/dist/zotero-chatgpt-pdf-$plugin_version.xpi" "$profile/plugin.xpi"
 
 if [[ -z "${ZOTERO_BIN:-}" ]]; then
   curl --fail --location --retry 2 --max-time 120 \
@@ -64,7 +65,7 @@ PY
 
 host_exit=0
 MOZ_NO_REMOTE=1 NO_EM_RESTART=1 timeout --kill-after=10s 240s \
-  xvfb-run -a "$ZOTERO_BIN" -no-remote -profile "$profile" -ZoteroDebugText \
+  xvfb-run -a -s '-screen 0 1440x900x24' "$ZOTERO_BIN" -no-remote -profile "$profile" -ZoteroDebugText \
   > "$smoke_dir/zotero.log" 2>&1 || host_exit=$?
 if [[ ! -f "$profile/result.json" ]]; then
   tail -c 12000 "$smoke_dir/zotero.log"
@@ -72,6 +73,9 @@ if [[ ! -f "$profile/result.json" ]]; then
   exit 1
 fi
 cp "$profile/result.json" "$smoke_dir/result.json"
+if [[ -f "$profile/reader-translation.png" ]]; then
+  cp "$profile/reader-translation.png" "$smoke_dir/reader-translation.png"
+fi
 if ! grep -q '"success": true' "$profile/result.json"; then
   grep -nEi 'JavaScript error|chrome://zotero-chatgpt-pdf|Exception|Could not' "$smoke_dir/zotero.log" | tail -n 35 || true
 fi
@@ -84,6 +88,7 @@ import pymupdf
 report = json.loads(Path(sys.argv[1]).read_text())
 print(json.dumps(report, indent=2))
 assert report["success"] and sys.argv[2] == "0", report.get("error")
+assert report["readerRequests"] == 2 and report["readerSidebar"]
 with pymupdf.open(report["outputs"]["original"]) as original, \
         pymupdf.open(report["outputs"]["mono"]) as mono, \
         pymupdf.open(report["outputs"]["dual"]) as dual, \

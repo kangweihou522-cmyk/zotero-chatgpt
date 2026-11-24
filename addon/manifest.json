@@ -1,8 +1,8 @@
 {
   "manifest_version": 2,
   "name": "Zotero ChatGPT PDF",
-  "version": "0.1.0",
-  "description": "在 Zotero 中用 ChatGPT 订阅翻译 PDF，保存译文和双语对照附件。",
+  "version": "0.2.0",
+  "description": "打开 PDF 后划选文字，用 ChatGPT 订阅在 Zotero 阅读器右侧查看原文和译文。",
   "homepage_url": "https://github.com/kangweihou522-cmyk/zotero-chatgpt",
   "applications": {
     "zotero": {
