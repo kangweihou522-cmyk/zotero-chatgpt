@@ -123,7 +123,9 @@ async function run() {
   });
   report.stage = "open-dialog";
   const pane = Zotero.getActiveZoteroPane();
-  await pane.selectItem(article.id);
+  const itemsView = await waitFor(() => pane.itemsView, "Zotero items view");
+  await itemsView.waitForLoad();
+  await itemsView.selectItems([article.id]);
   check(pane.getSelectedItems(true).includes(article.id), "Synthetic fixture could not be selected in the Zotero library");
   const dialog = await Zotero.ChatGPTPDF.open();
   check(dialog, "No translation window was opened");
@@ -140,6 +142,7 @@ async function run() {
   $("probe").click();
   await waitFor(() => {
     report.dialogStatus = $("status")?.textContent;
+    if ($("status").classList.contains("error")) throw new Error(report.dialogStatus);
     return $("renderer-status").textContent.includes("已就绪");
   }, "local engine probe");
 
@@ -153,8 +156,17 @@ async function run() {
   check(attachments.length === 3 && attachments.some(item => item.id === original.id),
     "Expected the original and two new attachments");
 
+  report.stage = "translate-alternating";
+  $("mode").value = "dual";
+  $("layout").value = "alternating";
+  $("start").click();
+  await waitFor(() => $("status").textContent.startsWith("成功 "), "alternating-page PDF", 75000);
+  check($("status").textContent.includes("成功 1，失败 0"), $("status").textContent + " " + $("items").textContent);
+  const alternate = (await Zotero.Items.getAsync(article.getAttachments())).find(item => item.getField("title").includes("交替页双语"));
+  check(alternate, "Missing alternating-page attachment");
+
   report.stage = "verified-attachments";
-  report.outputs = {};
+  report.outputs = { alternate: await alternate.getFilePathAsync() };
   for (const item of attachments) {
     const title = item.getField("title");
     const kind = item.id === original.id ? "original" : title.includes("并排双语") ? "dual" : "mono";

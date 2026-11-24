@@ -86,7 +86,8 @@ print(json.dumps(report, indent=2))
 assert report["success"] and sys.argv[2] == "0", report.get("error")
 with pymupdf.open(report["outputs"]["original"]) as original, \
         pymupdf.open(report["outputs"]["mono"]) as mono, \
-        pymupdf.open(report["outputs"]["dual"]) as dual:
+        pymupdf.open(report["outputs"]["dual"]) as dual, \
+        pymupdf.open(report["outputs"]["alternate"]) as alternate:
     assert len(original) == 2 and "MARS SURFACE SAMPLE" in original[0].get_text()
     assert len(mono) == len(dual) == 1
     assert dual[0].rect.width >= mono[0].rect.width * 1.9
@@ -95,4 +96,6 @@ with pymupdf.open(report["outputs"]["original"]) as original, \
     assert "光合作用将光能转化为化学能" in normalized(dual[0])
     assert "Photosynthesis converts light energy" in dual[0].get_text()
     assert "MARS SURFACE SAMPLE" not in dual[0].get_text()
+    assert len(alternate) == 2 and "Photosynthesis converts light energy" in alternate[0].get_text()
+    assert "光合作用将光能转化为化学能" in normalized(alternate[1])
 PY
