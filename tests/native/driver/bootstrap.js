@@ -126,7 +126,7 @@ async function run() {
   report.stage = "create-fixture";
   await article.saveTx({ skipNotifier: true });
   await article.loadDataType("childItems");
-  await Zotero.Notifier.trigger("add", "item", [article.id]);
+  await Zotero.Notifier.trigger("add", "item", [article.id], {});
   const original = await Zotero.Attachments.importFromFile({
     file: profileFile("fixture.pdf").path, parentItemID: article.id, title: "Original PDF", contentType: "application/pdf",
   });
@@ -156,7 +156,12 @@ async function run() {
   $("pages").value = "2";
   $("mode").value = "both";
   $("start").click();
-  await waitFor(() => $("status").textContent.startsWith("成功 "), "render and attachment import", 150000);
+  function translationFinished() {
+    report.dialogStatus = $("status").textContent;
+    report.queueStatus = $("items").textContent;
+    return report.dialogStatus.startsWith("成功 ");
+  }
+  await waitFor(translationFinished, "render and attachment import", 90000);
   check($("status").textContent.includes("成功 1，失败 0") && report.requests > 0, $("status").textContent + " " + $("items").textContent);
   const attachments = await Zotero.Items.getAsync(article.getAttachments());
   check(attachments.length === 3 && attachments.some(item => item.id === original.id),
@@ -166,7 +171,7 @@ async function run() {
   $("mode").value = "dual";
   $("layout").value = "alternating";
   $("start").click();
-  await waitFor(() => $("status").textContent.startsWith("成功 "), "alternating-page PDF", 75000);
+  await waitFor(translationFinished, "alternating-page PDF", 75000);
   check($("status").textContent.includes("成功 1，失败 0"), $("status").textContent + " " + $("items").textContent);
   const alternate = (await Zotero.Items.getAsync(article.getAttachments())).find(item => item.getField("title").includes("交替页双语"));
   check(alternate, "Missing alternating-page attachment");

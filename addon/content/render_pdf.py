@@ -209,6 +209,8 @@ async def render(job, directory, pipe):
             pipe.send("progress", stage=event["stage"], percent=event.get("overall_progress"))
         elif event_type == "finish":
             result = event["translate_result"]
+            # Follow BabelDOC’s CLI and stop at the terminal event.
+            break
         elif event_type == "error":
             detail = str(event["error"]).lower()
             if "scanned" in detail:
