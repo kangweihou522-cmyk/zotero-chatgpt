@@ -142,8 +142,11 @@ async function verifyReader(original, prefix) {
     return current && !current.closest(".pin-wrapper").hidden && current;
   }, "ChatGPT icon in the rightmost navigation bar");
   button.dispatchEvent(new win.MouseEvent("click", { bubbles: true, button: 0, detail: 1 }));
-  const sidebar = await waitFor(() => win.document.getElementById(reader.tabID + "-context")?.querySelector(".chatgpt-reader"),
-    "ChatGPT translation pane under the PDF reader context");
+  const sidebar = await waitFor(() => {
+    const current = win.document.getElementById(reader.tabID + "-context")?.querySelector(".chatgpt-reader");
+    report.readerControls = current?.querySelectorAll("[data-role]").length;
+    return current?.querySelector('[data-role="target"]')?.value === "zh-CN" && current;
+  }, "ChatGPT translation controls under the PDF reader context");
   const role = name => sidebar.querySelector('[data-role="' + name + '"]');
   check(sidebar.closest("#zotero-context-pane-inner"), "Translation pane is outside the native right sidebar");
   check(role("auto").checked && role("target").value === "zh-CN", "Unexpected reader defaults");

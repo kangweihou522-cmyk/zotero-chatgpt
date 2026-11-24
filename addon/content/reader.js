@@ -16,7 +16,7 @@ var ChatGPTPDFReader = (() => {
     es: ["西班牙语", "Spanish"], ru: ["俄语", "Russian"],
   };
 
-  const markup = `
+  const markup = `<div xmlns="${XHTML}" class="chatgpt-reader">
     <div class="cgpt-languages">
       <label>原文语言<select data-role="source"></select></label>
       <label>目标语言<select data-role="target"></select></label>
@@ -26,11 +26,11 @@ var ChatGPTPDFReader = (() => {
       <label><input data-role="annotation" type="checkbox"/>新建高亮或下划线时翻译</label>
     </div>
     <div class="cgpt-block">
-      <div class="cgpt-block-head"><strong>原文</strong><button type="button" data-role="copy-source">复制</button></div>
+      <div class="cgpt-block-head"><strong>原文</strong><button type="button" data-role="copy-source" aria-label="复制原文">复制</button></div>
       <div class="cgpt-passage" data-role="text" tabindex="0" aria-label="选中原文"></div>
     </div>
     <div class="cgpt-block">
-      <div class="cgpt-block-head"><strong>译文</strong><button type="button" data-role="copy-result">复制</button></div>
+      <div class="cgpt-block-head"><strong>译文</strong><button type="button" data-role="copy-result" aria-label="复制译文">复制</button></div>
       <div class="cgpt-passage cgpt-result" data-role="result" tabindex="0" aria-label="ChatGPT 译文"></div>
     </div>
     <div class="cgpt-actions">
@@ -52,7 +52,8 @@ var ChatGPTPDFReader = (() => {
         <button type="button" data-role="models">读取模型</button>
       </div>
     </details>
-    <p class="cgpt-note">发给 OpenAI 的内容是划选或指定标注的文字。翻译使用 ChatGPT 订阅额度。</p>`;
+    <p class="cgpt-note">发给 OpenAI 的内容是划选或指定标注的文字。翻译使用 ChatGPT 订阅额度。</p>
+  </div>`;
 
   function normalizeText(value) {
     return typeof value === "string" ? value.replace(/\r\n?/g, "\n").trim() : "";
@@ -147,9 +148,11 @@ var ChatGPTPDFReader = (() => {
     function paint(state) {
       const e = state.panel?.elements;
       if (!e) return;
-      e.text.textContent = state.text || "在 PDF 页面拖选要翻译的文字。";
+      const sourceText = state.text || "在 PDF 页面拖选要翻译的文字。";
+      if (e.text.textContent !== sourceText) e.text.textContent = sourceText;
       e.text.classList.toggle("cgpt-empty", !state.text);
-      e.result.textContent = state.result || "译文会显示在这里。";
+      const resultText = state.result || "译文会显示在这里。";
+      if (e.result.textContent !== resultText) e.result.textContent = resultText;
       e.result.classList.toggle("cgpt-empty", !state.result);
       e.result.setAttribute("aria-busy", String(Boolean(state.request)));
       e.status.textContent = state.status;
@@ -337,10 +340,7 @@ var ChatGPTPDFReader = (() => {
         paint(state);
         return;
       }
-      const root = doc.createElementNS(XHTML, "div");
-      root.className = "chatgpt-reader";
-      root.innerHTML = markup;
-      body.replaceChildren(root);
+      const root = body.querySelector(".chatgpt-reader");
       const elements = Object.fromEntries(Array.from(root.querySelectorAll("[data-role]"),
         node => [node.dataset.role, node]));
       const panel = { body, elements };
@@ -461,6 +461,7 @@ var ChatGPTPDFReader = (() => {
       const state = fromReader(reader);
       if (!state) return;
       const attachment = Zotero.Items.get(reader.itemID);
+      if (!attachment) return;
       const item = Zotero.Items.getByLibraryAndKey(attachment.libraryID, params.ids[0]);
       const text = annotationText(item, reader);
       if (normalizeText(text)) append({
@@ -495,6 +496,7 @@ var ChatGPTPDFReader = (() => {
         sectionID = Zotero.ItemPaneManager.registerSection({
           paneID: SECTION,
           pluginID,
+          bodyXHTML: markup,
           header: { l10nID: "zotero-chatgpt-pdf-reader-header", icon: ICON },
           sidenav: { l10nID: "zotero-chatgpt-pdf-reader-sidenav", icon: ICON },
           onItemChange(props) {
