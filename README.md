@@ -8,7 +8,7 @@
 
 需要 Zotero 10.0.x 桌面版和 64 位 Python 3.11–3.13。下面的命令使用 Python 3.12。ChatGPT 翻译使用官方订阅授权，需要符合条件的 Plus／Pro 账户，并使用账户可用的模型和额度。无需填写 API Key。 [官方授权说明](https://developers.openai.com/siwc/token-sharing-open-source)
 
-1. 下载 [Zotero 插件 XPI](https://github.com/kangweihou522-cmyk/zotero-chatgpt/releases/latest)。在 Zotero 打开 **工具 → 插件**，从齿轮菜单选择 **从文件安装插件…**，选择 XPI，并按提示重启。
+1. 下载 [Zotero 插件 XPI](https://github.com/kangweihou522-cmyk/zotero-chatgpt/raw/refs/tags/v0.1.0/downloads/zotero-chatgpt-pdf-0.1.0.xpi)。在 Zotero 打开 **工具 → 插件**，从齿轮菜单选择 **从文件安装插件…**，选择 XPI，并按提示重启。
 2. 为排版引擎创建 Python 环境。已安装 BabelDOC 0.7.1 的环境可以直接使用。
 
    **Windows PowerShell**
@@ -65,6 +65,6 @@ python3 -m unittest discover -s tests -p 'test_*.py'
 python3 scripts/build.py
 ```
 
-生成的安装包和 SHA-256 校验文件放在 `dist/`。授权和 Responses API 测试使用模拟账户、令牌与模型响应。实际订阅登录和模型额度在用户本机验证。
+生成的安装包和 SHA-256 校验文件放在 `dist/`。Zotero 10.0.8 实机测试已通过，覆盖 XPI 安装、模型读取、指定页翻译、两种双语版式和附件保存。测试使用模拟账户和模型响应。实际订阅登录和模型额度在用户本机验证。 [实机测试记录](https://github.com/kangweihou522-cmyk/zotero-chatgpt/actions/runs/45391565452)
 
 本项目使用 AGPL-3.0。ChatGPT 授权模块来自同账户的 [Zotero Ollama Local AI](https://github.com/kangweihou522-cmyk/zotero-ollama-local-ai)，沿用随包提供的 MIT 许可。BabelDOC 由用户的 Python 独立安装。
