@@ -42,6 +42,7 @@ with pymupdf.open() as document:
     document.save(profile / 'fixture.pdf')
 prefs = {
     'app.update.enabled': False,
+    'intl.locale.requested': 'zh-CN',
     'app.update.auto': False,
     'extensions.update.enabled': False,
     'extensions.autoDisableScopes': 0,

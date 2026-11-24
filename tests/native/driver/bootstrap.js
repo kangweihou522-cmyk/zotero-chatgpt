@@ -96,11 +96,13 @@ function streamedText(text, model) {
   return { status: 200, responseText: events.map(event => "data: " + JSON.stringify(event) + "\n\n").join("") };
 }
 
-function sendPDFDrag(view, pdfWindow, pageIndex) {
+async function sendPDFDrag(view, pdfWindow, pageIndex) {
   const { chars } = view._pdfPages[pageIndex];
   const first = chars[0].rect;
   const last = chars.at(-1).rect;
   const pdfPage = pdfWindow.PDFViewerApplication.pdfViewer.getPageView(pageIndex);
+  pdfPage.div.scrollIntoView({ block: "start" });
+  await new Promise(resolve => setTimeout(resolve, 100));
   const bounds = pdfPage.div.getBoundingClientRect();
   const project = (x, y) => {
     const [left, top] = pdfPage.viewport.convertToViewportPoint(x, y);
@@ -108,10 +110,14 @@ function sendPDFDrag(view, pdfWindow, pageIndex) {
   };
   const [x1, y1] = project(first[0] - 1, (first[1] + first[3]) / 2);
   const [x2, y2] = project(last[2] + 1, (last[1] + last[3]) / 2);
-  const utils = pdfWindow.windowUtils;
+  const utils = Components.utils.unwaiveXrays(pdfWindow).windowUtils;
+  const waitFrame = () => new Promise(resolve => setTimeout(resolve, 45));
   utils.sendMouseEvent("mousedown", x1, y1, 0, 1, 0);
+  await waitFrame();
   utils.sendMouseEvent("mousemove", (x1 + x2) / 2, (y1 + y2) / 2, 0, 0, 0);
+  await waitFrame();
   utils.sendMouseEvent("mousemove", x2, y2, 0, 0, 0);
+  await waitFrame();
   utils.sendMouseEvent("mouseup", x2, y2, 0, 1, 0);
   return [x1, y1, x2, y2];
 }
@@ -162,7 +168,7 @@ async function verifyReader(original, prefix) {
   await waitFor(() => view._pdfPages[pageIndex]?.chars?.length
     && pdfWindow.PDFViewerApplication.pdfViewer.getPageView(pageIndex)?.div.getBoundingClientRect().height,
     "text geometry of the opened PDF page");
-  report.drag = sendPDFDrag(view, pdfWindow, pageIndex);
+  report.drag = await sendPDFDrag(view, pdfWindow, pageIndex);
   await waitFor(() => {
     report.readerStatus = role("status").textContent;
     report.readerSource = role("text").textContent;

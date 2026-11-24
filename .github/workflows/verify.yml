@@ -21,7 +21,7 @@ jobs:
           node --test tests/*.test.cjs
           python3 -m unittest discover -s tests -p 'test_*.py'
       - name: Install Zotero runtime dependencies
-        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends xvfb xauth libgtk-3-0 libdbus-glib-1-2 libx11-xcb1 libxt6
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends xvfb xauth libgtk-3-0 libdbus-glib-1-2 libx11-xcb1 libxt6 fonts-noto-cjk
       - name: Test PDF selection in the reader and translate a synthetic PDF in Zotero 10.0.8
         run: bash tests/native/run.sh
       - uses: actions/upload-artifact@v4
