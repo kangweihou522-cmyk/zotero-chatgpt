@@ -43,7 +43,7 @@ var ChatGPTPDFRenderer = (() => {
       };
       signal?.addEventListener("abort", abort, { once: true });
       try {
-        script ??= await Zotero.File.getContentsFromURLAsync(rootURI + "content/render_pdf.py");
+        script ??= await Zotero.File.getResourceAsync(rootURI + "content/render_pdf.py");
         const scriptPath = PathUtils.join(directory, "render_pdf.py");
         await IOUtils.writeUTF8(scriptPath, script);
         signal?.throwIfAborted();

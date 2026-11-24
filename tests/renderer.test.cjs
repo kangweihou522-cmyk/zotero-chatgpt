@@ -16,7 +16,7 @@ function fixture(chunks, handler = {}) {
     kill: async () => { killed = true; handler.onKill?.(); },
   };
   const run = renderer.create({
-    Zotero: { debug() {}, File: { getContentsFromURLAsync: async () => "worker.py" } },
+    Zotero: { debug() {}, File: { getResourceAsync: async () => "worker.py" } },
     ChromeUtils: { importESModule: () => ({ Subprocess: { call: async options => {
       assert.equal(options.command, "/venv/bin/python");
       assert.deepEqual(options.arguments, ["-I", "-u", "/tmp/job/render_pdf.py"]);

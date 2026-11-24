@@ -5,7 +5,7 @@
         {
           "version": "0.1.0",
           "update_link": "https://github.com/kangweihou522-cmyk/zotero-chatgpt/releases/download/v0.1.0/zotero-chatgpt-pdf-0.1.0.xpi",
-          "update_hash": "sha256:e2b694747ed319cb85f96cd73f6de20c9c76112c3b91ae7f3b060abfdd54a03c",
+          "update_hash": "sha256:04845534d435818a241d05968d5dd92999c5f088ee9b31829ea5dcb60da94b48",
           "applications": {
             "zotero": {
               "strict_min_version": "10.0",
