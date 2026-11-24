@@ -3,6 +3,17 @@
     "chatgpt-pdf@zotero.community": {
       "updates": [
         {
+          "version": "0.2.0",
+          "update_link": "https://github.com/kangweihou522-cmyk/zotero-chatgpt/raw/refs/tags/v0.2.0/downloads/zotero-chatgpt-pdf-0.2.0.xpi",
+          "update_hash": "sha256:6080e48e03fb369acda315179b659fbe1d8e8e06bdeb0018605a53fa0cd151e2",
+          "applications": {
+            "zotero": {
+              "strict_min_version": "10.0",
+              "strict_max_version": "10.0.*"
+            }
+          }
+        },
+        {
           "version": "0.1.0",
           "update_link": "https://github.com/kangweihou522-cmyk/zotero-chatgpt/raw/refs/tags/v0.1.0/downloads/zotero-chatgpt-pdf-0.1.0.xpi",
           "update_hash": "sha256:216b9c5bc1ed29b6292e48d0503dfa08df5301f6c6146dcb61b2c745f5bf249f",
